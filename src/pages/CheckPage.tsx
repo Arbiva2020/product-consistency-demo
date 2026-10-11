@@ -143,15 +143,13 @@ export default function CheckPage() {
                 {results.length} potential consistency issue detected.
               </Alert>
 
-              {results.map((result) => (
+              {results.map((result, index) => (
                 <Paper
-                  key={result.relatedObject.id}
-                  variant="outlined"
-                  sx={{
-                    p: 3,
-                    borderRadius: 3,
-                    mb: 2,
-                  }}
+                  key={
+                    result.relatedObject?.id ??
+                    result.relatedDecision?.id ??
+                    `conflict-${index}`
+                  }
                 >
                   <Stack
                     direction="row"
@@ -182,18 +180,22 @@ export default function CheckPage() {
                   </Stack>
 
                   <Typography
-                    variant="h6"
-                    sx={{ fontWeight: 600 }}
-                  >
-                    Conflicts with {result.relatedObject.id}
-                  </Typography>
+  variant="h6"
+  sx={{ fontWeight: 600 }}
+>
+  {result.sourceType === 'KNOWLEDGE'
+    ? `Conflicts with ${result.relatedObject?.id}`
+    : 'Conflicts with approved Product Decision'}
+</Typography>
 
-                  <Typography
-                    color="text.secondary"
-                    sx={{ mt: 0.5 }}
-                  >
-                    {result.relatedObject.title}
-                  </Typography>
+<Typography
+  color="text.secondary"
+  sx={{ mt: 0.5 }}
+>
+  {result.sourceType === 'KNOWLEDGE'
+    ? result.relatedObject?.title
+    : result.relatedDecision?.title}
+</Typography>
 
                   <Divider sx={{ my: 2 }} />
 
@@ -220,25 +222,44 @@ export default function CheckPage() {
                       variant="caption"
                       color="text.secondary"
                     >
-                      EXISTING PRODUCT KNOWLEDGE
+                      {result.sourceType === 'KNOWLEDGE'
+                        ? 'EXISTING PRODUCT KNOWLEDGE'
+                        : 'APPROVED PRODUCT DECISION'}
                     </Typography>
 
                     <Typography sx={{ mt: 1 }}>
-                      {result.relatedObject.content}
+                      {result.sourceType === 'KNOWLEDGE'
+                        ? result.relatedObject?.content
+                        : result.relatedDecision?.decision}
                     </Typography>
 
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{
-                        display: 'block',
-                        mt: 2,
-                      }}
-                    >
-                      Source: {result.relatedObject.source}
-                      {' • '}
-                      Owner: {result.relatedObject.owner}
-                    </Typography>
+                    {result.sourceType === 'KNOWLEDGE' ? (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          display: 'block',
+                          mt: 2,
+                        }}
+                      >
+                        Source: {result.relatedObject?.source}
+                        {' • '}
+                        Owner: {result.relatedObject?.owner}
+                      </Typography>
+                    ) : (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          display: 'block',
+                          mt: 2,
+                        }}
+                      >
+                        Version: {result.relatedDecision?.version}
+                        {' • '}
+                        Approved by: {result.relatedDecision?.approvedBy}
+                      </Typography>
+                    )}
                   </Box>
                     <Box
                         sx={{

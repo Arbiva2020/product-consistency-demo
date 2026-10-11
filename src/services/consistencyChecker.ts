@@ -1,23 +1,48 @@
 import {
   productKnowledge,
   type KnowledgeObject,
-} from '../data/productknowledge'
+} from '../data/productKnowledge'
+
+import {
+  getDecisions,
+  type ProductDecision,
+} from '../data/decisionStore'
 
 export interface ConflictResult {
-  type: 'CONTRADICTION'
+  type:
+    | 'CONTRADICTION'
+    | 'EXISTING_TRUTH_CONFLICT'
+
   severity: 'HIGH' | 'MEDIUM'
+
   confidence: number
+
   reason: string
-  relatedObject: KnowledgeObject
+
+  sourceType:
+    | 'KNOWLEDGE'
+    | 'PRODUCT_DECISION'
+
+  relatedObject?: KnowledgeObject
+
+  relatedDecision?: ProductDecision
 }
 
 export function checkConsistency(
   title: string,
   requirement: string,
 ): ConflictResult[] {
-  const text = `${title} ${requirement}`.toLowerCase()
+  const text =
+    `${title} ${requirement}`.toLowerCase()
 
   const results: ConflictResult[] = []
+
+  /*
+   * CHECK 1
+   *
+   * New requirement attempts to change login email.
+   * Compare against existing product knowledge.
+   */
 
   const isChangingLoginEmail =
     text.includes('email') &&
@@ -37,9 +62,63 @@ export function checkConsistency(
         type: 'CONTRADICTION',
         severity: 'HIGH',
         confidence: 0.94,
+
         reason:
           'The proposed requirement allows the login email to change, while an approved Product Decision defines the login email as an immutable account identifier.',
+
+        sourceType: 'KNOWLEDGE',
+
         relatedObject,
+      })
+    }
+  }
+
+  /*
+   * CHECK 2
+   *
+   * Password recovery is being sent to contact email.
+   *
+   * We check whether Product Memory contains
+   * an approved decision separating login email
+   * from contact email.
+   */
+
+  const isUsingContactEmailForRecovery =
+    text.includes('contact email') &&
+    (
+      text.includes('password') ||
+      text.includes('recovery') ||
+      text.includes('reset')
+    )
+
+  if (isUsingContactEmailForRecovery) {
+    const decisions = getDecisions()
+
+    const identityDecision =
+      decisions.find((decision) => {
+        const decisionText =
+          `${decision.decision} ${decision.rationale}`.toLowerCase()
+
+        return (
+          decisionText.includes('login email') &&
+          decisionText.includes('contact email')
+        )
+      })
+
+    if (identityDecision) {
+      results.push({
+        type: 'EXISTING_TRUTH_CONFLICT',
+
+        severity: 'HIGH',
+
+        confidence: 0.91,
+
+        reason:
+          'This requirement uses the contact email for password recovery. An approved Product Decision separates contact email from the login identity used for authentication and account recovery.',
+
+        sourceType: 'PRODUCT_DECISION',
+
+        relatedDecision: identityDecision,
       })
     }
   }

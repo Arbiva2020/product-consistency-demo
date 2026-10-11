@@ -20,3 +20,16 @@ export function addDecision(decision: ProductDecision) {
 export function getDecisions() {
   return decisions
 }
+
+export function findDecisionByText(
+  searchTerms: string[],
+): ProductDecision | undefined {
+  return decisions.find((decision) => {
+    const text =
+      `${decision.title} ${decision.decision} ${decision.rationale}`.toLowerCase()
+
+    return searchTerms.some((term) =>
+      text.includes(term.toLowerCase()),
+    )
+  })
+}

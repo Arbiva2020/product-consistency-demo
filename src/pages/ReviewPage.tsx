@@ -63,7 +63,9 @@ export default function ReviewPage() {
       rationale,
       sourceConflictId: selectedItem.id,
       relatedObjectId:
-        selectedItem.conflict.relatedObject.id,
+      selectedItem.conflict.sourceType === 'KNOWLEDGE'
+        ? selectedItem.conflict.relatedObject?.id ?? 'UNKNOWN'
+        : selectedItem.conflict.relatedDecision?.id ?? 'UNKNOWN',
       status: 'APPROVED',
       version: 1,
       approvedBy: 'Demo Product Manager',
@@ -171,9 +173,9 @@ export default function ReviewPage() {
                 mt: 0.5,
               }}
             >
-              {item.conflict.relatedObject.id}
-              {' — '}
-              {item.conflict.relatedObject.title}
+            {item.conflict.sourceType === 'KNOWLEDGE'
+              ? `${item.conflict.relatedObject?.id} — ${item.conflict.relatedObject?.title}`
+              : `Product Decision — ${item.conflict.relatedDecision?.title}`}
             </Typography>
 
             <Typography sx={{ mt: 2 }}>
