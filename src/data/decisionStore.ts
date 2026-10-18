@@ -1,3 +1,7 @@
+//the purpose of this file is to store the product decisions made by the user.
+// it is used to check for consistency between the product knowledge and the 
+// product decisions.
+
 export interface ProductDecision {
   id: string
   title: string

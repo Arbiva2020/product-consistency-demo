@@ -1,3 +1,8 @@
+//the purpose of this file is to check for consistency between the product 
+// knowledge and the product decisions by the user.
+// it is done by comparing the text of the new requirement with the text 
+// of the product knowledge and the product decisions.
+
 import {
   productKnowledge,
   type KnowledgeObject,
