@@ -1,16 +1,58 @@
+import { useEffect, useState } from 'react'
+
 import {
   Alert,
   Box,
   Chip,
+  CircularProgress,
   Paper,
   Stack,
   Typography,
 } from '@mui/material'
 
-import { getDecisions } from '../data/decisionStore'
+import {
+  getDecisions,
+  type ProductDecision,
+} from '../data/decisionStore'
 
 export default function ExplorePage() {
-  const decisions = getDecisions()
+  const [decisions, setDecisions] = useState<ProductDecision[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+
+    const loadDecisions = async () => {
+      try {
+        const data = await getDecisions()
+
+        if (active) {
+          setDecisions(data)
+        }
+      } catch (err) {
+        console.error('Failed to load Product Decisions:', err)
+
+        if (active) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Failed to load Product Decisions.',
+          )
+        }
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadDecisions()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   return (
     <Box sx={{ maxWidth: 900 }}>
@@ -35,7 +77,15 @@ export default function ExplorePage() {
         Product Decisions
       </Typography>
 
-      {decisions.length === 0 ? (
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Alert severity="error">
+          {error}
+        </Alert>
+      ) : decisions.length === 0 ? (
         <Alert severity="info">
           No Product Decisions have been captured yet.
         </Alert>

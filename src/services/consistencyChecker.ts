@@ -1,8 +1,3 @@
-//the purpose of this file is to check for consistency between the product 
-// knowledge and the product decisions by the user.
-// it is done by comparing the text of the new requirement with the text 
-// of the product knowledge and the product decisions.
-
 import {
   productKnowledge,
   type KnowledgeObject,
@@ -33,24 +28,20 @@ export interface ConflictResult {
   relatedDecision?: ProductDecision
 }
 
-export function checkConsistency(
+export async function checkConsistency(
   title: string,
   requirement: string,
-): ConflictResult[] {
-  const text =
-    `${title} ${requirement}`.toLowerCase()
+): Promise<ConflictResult[]> {
+  const text = `${title} ${requirement}`.toLowerCase()
 
   const results: ConflictResult[] = []
 
-  /*
-   * CHECK 1
-   *
-   * New requirement attempts to change login email.
-   * Compare against existing product knowledge.
-   */
+  // CHECK 1:
+  // Compare a proposed login email change
+  // against existing product knowledge.
 
   const isChangingLoginEmail =
-    text.includes('email') &&
+    text.includes('login email') &&
     (
       text.includes('change') ||
       text.includes('update') ||
@@ -67,26 +58,17 @@ export function checkConsistency(
         type: 'CONTRADICTION',
         severity: 'HIGH',
         confidence: 0.94,
-
         reason:
-          'The proposed requirement allows the login email to change, while an approved Product Decision defines the login email as an immutable account identifier.',
-
+          'The proposed requirement allows the login email to change, while existing product knowledge defines the login email as an immutable account identifier.',
         sourceType: 'KNOWLEDGE',
-
         relatedObject,
       })
     }
   }
 
-  /*
-   * CHECK 2
-   *
-   * Password recovery is being sent to contact email.
-   *
-   * We check whether Product Memory contains
-   * an approved decision separating login email
-   * from contact email.
-   */
+  // CHECK 2:
+  // Compare password recovery requirements
+  // against approved Product Decisions in Supabase.
 
   const isUsingContactEmailForRecovery =
     text.includes('contact email') &&
@@ -97,32 +79,30 @@ export function checkConsistency(
     )
 
   if (isUsingContactEmailForRecovery) {
-    const decisions = getDecisions()
+    const decisions = await getDecisions()
 
-    const identityDecision =
-      decisions.find((decision) => {
-        const decisionText =
-          `${decision.decision} ${decision.rationale}`.toLowerCase()
+    const identityDecision = decisions.find((decision) => {
+      const decisionText =
+        `${decision.decision} ${decision.rationale}`.toLowerCase()
 
-        return (
-          decisionText.includes('login email') &&
-          decisionText.includes('contact email')
+      return (
+        decisionText.includes('login email') &&
+        decisionText.includes('contact email') &&
+        (
+          decisionText.includes('recovery') ||
+          decisionText.includes('authentication')
         )
-      })
+      )
+    })
 
     if (identityDecision) {
       results.push({
         type: 'EXISTING_TRUTH_CONFLICT',
-
         severity: 'HIGH',
-
         confidence: 0.91,
-
         reason:
-          'This requirement uses the contact email for password recovery. An approved Product Decision separates contact email from the login identity used for authentication and account recovery.',
-
+          'This requirement proposes using the contact email for password recovery. An approved Product Decision contains relevant restrictions concerning login identity, contact email, and account recovery. Review whether the new requirement conflicts with that decision.',
         sourceType: 'PRODUCT_DECISION',
-
         relatedDecision: identityDecision,
       })
     }

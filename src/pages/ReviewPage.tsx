@@ -36,6 +36,8 @@ export default function ReviewPage() {
 
   const [decision, setDecision] = useState('')
   const [rationale, setRationale] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const refreshItems = () => {
     setItems([...getReviewItems()])
@@ -45,44 +47,67 @@ export default function ReviewPage() {
     setSelectedItem(item)
     setDecision('')
     setRationale('')
+    setSaveError(null)
   }
-
+  
   const handleClose = () => {
+    if (saving) return
+  
     setSelectedItem(null)
+    setSaveError(null)
   }
 
-  const handleSaveDecision = () => {
-    if (!selectedItem) {
+  const handleSaveDecision = async () => {
+    if (
+      !selectedItem ||
+      saving ||
+      !decision.trim() ||
+      !rationale.trim()
+    ) {
       return
     }
-
-    addDecision({
-      id: `DEC-${Date.now()}`,
-      title: `Decision: ${selectedItem.requirementTitle}`,
-      decision,
-      rationale,
-      sourceConflictId: selectedItem.id,
-      relatedObjectId:
-      selectedItem.conflict.sourceType === 'KNOWLEDGE'
-        ? selectedItem.conflict.relatedObject?.id ?? 'UNKNOWN'
-        : selectedItem.conflict.relatedDecision?.id ?? 'UNKNOWN',
-      status: 'APPROVED',
-      version: 1,
-      approvedBy: 'Demo Product Manager',
-      approvedAt: new Date().toISOString(),
-    })
-
-    updateReviewStatus(
-      selectedItem.id,
-      'RESOLVED',
-    )
-
-    setSelectedItem(null)
-    setDecision('')
-    setRationale('')
-
-    refreshItems()
+  
+    setSaving(true)
+    setSaveError(null)
+  
+    try {
+      await addDecision({
+        id: crypto.randomUUID(),
+        title: `Decision: ${selectedItem.requirementTitle}`,
+        decision: decision.trim(),
+        rationale: rationale.trim(),
+        sourceConflictId: selectedItem.id,
+        relatedObjectId:
+          selectedItem.conflict.sourceType === 'KNOWLEDGE'
+            ? selectedItem.conflict.relatedObject?.id ?? 'UNKNOWN'
+            : selectedItem.conflict.relatedDecision?.id ?? 'UNKNOWN',
+        status: 'APPROVED',
+        version: 1,
+        approvedBy: 'Demo Product Manager',
+        approvedAt: new Date().toISOString(),
+      })
+  
+      // Only resolve the review after successful database save.
+      updateReviewStatus(selectedItem.id, 'RESOLVED')
+  
+      setSelectedItem(null)
+      setDecision('')
+      setRationale('')
+  
+      refreshItems()
+    } catch (error) {
+      console.error('Failed to save Product Decision:', error)
+  
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to save the Product Decision. Please try again.',
+      )
+    } finally {
+      setSaving(false)
+    }
   }
+
 
   const changeStatus = (
     id: string,
@@ -244,6 +269,12 @@ export default function ReviewPage() {
             requirements can be checked against it.
           </Typography>
 
+          {saveError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {saveError}
+            </Alert>
+          )}
+
           <TextField
             label="Decision"
             placeholder="e.g. Login email remains immutable. A separate contact email will be introduced."
@@ -271,7 +302,10 @@ export default function ReviewPage() {
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={handleClose}>
+          <Button
+            onClick={handleClose}
+            disabled={saving}
+          >
             Cancel
           </Button>
 
@@ -279,11 +313,12 @@ export default function ReviewPage() {
             variant="contained"
             onClick={handleSaveDecision}
             disabled={
+              saving ||
               !decision.trim() ||
               !rationale.trim()
             }
           >
-            Approve decision
+            {saving ? 'Saving...' : 'Approve decision'}
           </Button>
         </DialogActions>
       </Dialog>
