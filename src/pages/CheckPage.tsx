@@ -32,6 +32,11 @@ export default function CheckPage() {
   const [checking, setChecking] = useState(false)
   const [checkError, setCheckError] = useState<string | null>(null)
   const [sentToReview, setSentToReview] = useState<string[]>([])
+  const [sendingToReview, setSendingToReview] = useState<string | null>(null)
+  const [reviewError, setReviewError] = useState<{
+    conflictKey: string
+    message: string
+  } | null>(null)
 
   const handleCheck = async () => {
     if (checking || !title.trim() || !requirement.trim()) {
@@ -62,24 +67,50 @@ export default function CheckPage() {
   const getConflictKey = (result: ConflictResult, index: number) =>
     `${result.sourceType}-${result.relatedObject?.id ?? result.relatedDecision?.id ?? index}-${result.type}`
 
-  const handleSendToReview = (result: ConflictResult, index: number) => {
-    const key = getConflictKey(result, index)
 
-    if (sentToReview.includes(key)) {
+  const handleSendToReview = async (
+    result: ConflictResult,
+    index: number,
+  ) => {
+    const key = getConflictKey(result, index)
+  
+    if (
+      sentToReview.includes(key) ||
+      sendingToReview !== null
+    ) {
       return
     }
+  
+    setSendingToReview(key)
+    setReviewError(null)
+  
+    try {
+      await addReviewItem({
+        id: crypto.randomUUID(),
+        requirementTitle: title,
+        requirement,
+        conflict: result,
+        status: 'OPEN',
+        createdAt: new Date().toISOString(),
+      })
+  
+      setSentToReview((previous) => [...previous, key])
+    } catch (error) {
+      console.error('Failed to send conflict to Review:', error)
+  
+      setReviewError({
+        conflictKey: key,
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Failed to send the conflict to Review.',
+      })
 
-    addReviewItem({
-      id: crypto.randomUUID(),
-      requirementTitle: title,
-      requirement,
-      conflict: result,
-      status: 'OPEN',
-      createdAt: new Date().toISOString(),
-    })
-
-    setSentToReview((previous) => [...previous, key])
+    } finally {
+      setSendingToReview(null)
+    }
   }
+  
 
   const handleRequirementChange = (value: string) => {
     setRequirement(value)
@@ -168,6 +199,7 @@ export default function CheckPage() {
           </Button>
         </Box>
       </Paper>
+
 
       {checkError && (
         <Alert severity="error" sx={{ mt: 3 }}>
@@ -302,21 +334,41 @@ export default function CheckPage() {
                       )}
                     </Box>
 
+                    
                     <Box
                       sx={{
                         mt: 3,
                         display: 'flex',
-                        justifyContent: 'flex-end',
+                        flexDirection: 'column',
+                        alignItems: 'flex-end',
+                        gap: 1,
                       }}
                     >
                       <Button
                         variant="outlined"
-                        onClick={() => handleSendToReview(result, index)}
-                        disabled={alreadySent}
+                        onClick={() => void handleSendToReview(result, index)}
+                        disabled={alreadySent || sendingToReview !== null}
                       >
-                        {alreadySent ? 'Sent to review' : 'Send to review'}
+                        {alreadySent
+                          ? 'Sent to review'
+                          : sendingToReview === conflictKey
+                            ? 'Sending...'
+                            : 'Send to review'}
                       </Button>
+
+                      {reviewError?.conflictKey === conflictKey && (
+                        <Alert
+                          severity="error"
+                          sx={{
+                            width: '100%',
+                            mt: 1,
+                          }}
+                        >
+                          {reviewError.message}
+                        </Alert>
+                      )}
                     </Box>
+
                   </Paper>
                 )
               })}
